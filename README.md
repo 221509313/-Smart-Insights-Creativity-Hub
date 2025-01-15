@@ -1,2 +1,1 @@
-# -Smart-Insights-Creativity-Hub
- Smart Insights &amp; Creativity Hub
+This app is like a smart assistant on a website that can predict future sales based on past data, write short creative texts when you give it an idea, and show you everything in a simple, easy-to-use webpage.
