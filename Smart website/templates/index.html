@@ -1,0 +1,289 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Sales Prediction and Text Generation</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
+    <style>
+        /* Chatbot styles */
+        #chatbot {
+            border: 2px solid #007bff;
+            border-radius: 50%;
+            width: 60px; /* Reduced width */
+            height: 60px; /* Reduced height */
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: white;
+            display: block; /* Make the chatbot visible by default */
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            z-index: 1000; /* Ensure it's on top of other content */
+            cursor: pointer; /* Change cursor to pointer on hover */
+            text-align: center;
+            line-height: 60px; /* Center icon/text vertically */
+            transition: transform 0.3s; /* Smooth scaling effect */
+        }
+
+        #chatbot:hover {
+            transform: scale(1.1); /* Scale up on hover */
+        }
+
+        #chatbot-body {
+            display: none; /* Initially hide the body */
+            position: fixed;
+            bottom: 80px; /* Position above the chatbot icon */
+            right: 20px;
+            width: 250px; /* Slightly narrower */
+            border-radius: 10px;
+            background-color: white;
+            box-shadow: 0 0 10px rgba(0, 0, 0, 0.2);
+            padding: 10px;
+            z-index: 1001; /* Ensure it's on top */
+            transition: all 0.3s; /* Smooth transition */
+        }
+
+        #chatbot-header {
+            background-color: #007bff;
+            color: white;
+            padding: 8px; /* Reduced padding */
+            border-top-left-radius: 10px;
+            border-top-right-radius: 10px;
+            text-align: center;
+            cursor: pointer;
+        }
+
+        #options {
+            list-style-type: none;
+            padding: 0;
+            display: none; /* Options hidden by default */
+            max-height: 150px; /* Set a max height for options */
+            overflow-y: auto; /* Allow scrolling if needed */
+        }
+
+        #options li {
+            padding: 8px;
+            background-color: #f0f0f0;
+            margin: 3px 0; /* Reduced margin */
+            border-radius: 5px;
+            cursor: pointer;
+            text-align: center;
+        }
+
+        #options li:hover {
+            background-color: #e0e0e0;
+        }
+
+        #chatbot-response {
+            margin-top: 10px;
+            padding: 8px; /* Reduced padding */
+            background-color: #e9ecef;
+            border-radius: 5px;
+            font-size: 0.9em; /* Slightly smaller font */
+        }
+
+        #search-bar {
+            width: 100%;
+            padding: 6px; /* Reduced padding */
+            border-radius: 5px;
+            border: 1px solid #ccc;
+            margin-bottom: 10px;
+        }
+
+        #menu-button {
+            margin: 10px 0;
+            padding: 6px 8px; /* Reduced padding */
+            background-color: #007bff;
+            color: white;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-size: 0.9em; /* Slightly smaller font */
+        }
+
+        #menu-button:hover {
+            background-color: #0056b3;
+        }
+
+        /* Animation for chatbot body */
+        .fade-in {
+            animation: fadeIn 0.3s;
+        }
+
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+            }
+
+            to {
+                opacity: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <!-- Header Section -->
+    <header>
+        <div class="header-container">
+            <img src="{{ url_for('static', filename='logo.jpg') }}" alt="Logo" class="logo" style="height: 70px;width: 70px;border-radius: 50px;">
+            <h1 class="site-title" style="color: aliceblue;">Inventory Management System for Small Retail Businesses</h1>
+        </div>
+    </header>
+
+    <main>
+        <!-- Linear Regression Sales Prediction -->
+        <h2>Sales Prediction using Linear Regression</h2>
+        <form method="POST">
+            <label for="num_days">Number of Days:</label>
+            <input type="number" name="num_days" id="num_days" required>
+            <button type="submit">Predict Sales</button>
+        </form>
+        {% if predicted_sales_linear is not none %}
+        <h3>Predicted Sales (Linear Regression): {{ predicted_sales_linear }}</h3>
+        {% endif %}
+
+        <!-- ARIMA Sales Prediction -->
+        <h2>Sales Forecast using ARIMA Model</h2>
+        <form method="POST">
+            <label for="steps">Forecast for Number of Days Ahead:</label>
+            <input type="number" name="steps" id="steps" required>
+            <button type="submit">Forecast Sales</button>
+        </form>
+
+        {% if predicted_sales_arima is not none %}
+        <h3>Forecasted Sales (ARIMA):
+            {% if steps == 1 %}
+            {{ predicted_sales_arima }}
+            {% else %}
+            {% for value in predicted_sales_arima %}
+            {{ value }}<br>
+            {% endfor %}
+            {% endif %}
+        </h3>
+        {% endif %}
+
+        <!-- Text Generation Section -->
+        <h2>Text Generation</h2>
+        <form method="POST">
+            <label for="prompt">Enter a prompt for text generation:</label>
+            <input type="text" name="prompt" id="prompt" required>
+            <button type="submit">Generate Text</button>
+        </form>
+        {% if generated_text %}
+        <h3>Generated Text:</h3>
+        <p>{{ generated_text }}</p>
+        {% endif %}
+        
+        <!-- Chatbot Section -->
+        <div id="chatbot" onclick="toggleChatbot()">
+            <span>🤖</span> <!-- Chatbot Icon -->
+        </div>
+        <div id="chatbot-body">
+            <div id="chatbot-header">Chatbot</div>
+            <input type="text" id="search-bar" placeholder="Type 'hello' to start" onkeydown="checkInput(event)">
+            <button id="menu-button" style="display: none;" onclick="showOptions()">Menu</button>
+            <ul id="options">
+                <li onclick="answerQuestion(1)">What is inventory management?</li>
+                <li onclick="answerQuestion(2)">Why is inventory management important?</li>
+                <li onclick="answerQuestion(3)">What are the best practices for inventory management?</li>
+                <li onclick="answerQuestion(4)">How can I improve inventory accuracy?</li>
+                <li onclick="answerQuestion(5)">What is an inventory turnover rate?</li>
+                <li onclick="answerQuestion(6)">How do I calculate safety stock?</li>
+                <li onclick="answerQuestion(7)">What tools can help with inventory management?</li>
+                <li onclick="answerQuestion(8)">What is the difference between FIFO and LIFO?</li>
+                <li onclick="answerQuestion(9)">How do I conduct an inventory audit?</li>
+                <li onclick="answerQuestion(10)">What are common inventory management mistakes?</li>
+            </ul>
+            <div id="chatbot-response"></div>
+        </div>
+    </main>
+
+    <!-- Footer Section -->
+    <footer>
+        <p>&copy; 2024 Your Company Name. All rights reserved.</p>
+    </footer>
+
+    <script>
+        // Function to toggle the chatbot body visibility
+        function toggleChatbot() {
+            const chatbotBody = document.getElementById('chatbot-body');
+            chatbotBody.style.display = chatbotBody.style.display === 'block' ? 'none' : 'block';
+            if (chatbotBody.style.display === 'block') {
+                chatbotBody.classList.add('fade-in'); // Add fade-in effect
+            }
+        }
+
+        // Function to check user input in search bar
+        function checkInput(event) {
+            if (event.key === 'Enter') {
+                const input = document.getElementById('search-bar').value.toLowerCase();
+                if (input === 'hello') {
+                    document.getElementById('menu-button').style.display = 'block'; // Show menu button
+                    document.getElementById('chatbot-response').innerText = "Hello! How can I assist you today?";
+                    speakText("Hello! How can I assist you today?"); // Read the response
+                } else {
+                    document.getElementById('chatbot-response').innerText = "Please type 'hello' to start.";
+                    speakText("Please type 'hello' to start."); // Read the response
+                }
+            }
+        }
+
+        // Function to show menu options
+        function showOptions() {
+            const options = document.getElementById('options');
+            options.style.display = options.style.display === 'block' ? 'none' : 'block';
+        }
+
+        // Function to answer questions based on menu selection
+        function answerQuestion(option) {
+            let response = "";
+            switch (option) {
+                case 1:
+                    response = "Inventory management is the process of ordering, storing, and using a company's inventory.";
+                    break;
+                case 2:
+                    response = "Inventory management is important because it helps businesses maintain optimal stock levels, reducing costs and improving customer satisfaction.";
+                    break;
+                case 3:
+                    response = "Best practices include accurate tracking, regular audits, and effective forecasting.";
+                    break;
+                case 4:
+                    response = "To improve inventory accuracy, conduct regular stock counts, use technology for tracking, and train staff on proper procedures.";
+                    break;
+                case 5:
+                    response = "The inventory turnover rate is a ratio showing how many times a company's inventory is sold and replaced over a period.";
+                    break;
+                case 6:
+                    response = "Safety stock is calculated based on lead time demand, service level, and variability in demand and supply.";
+                    break;
+                case 7:
+                    response = "Tools like inventory management software, barcode scanners, and RFID systems can help streamline inventory processes.";
+                    break;
+                case 8:
+                    response = "FIFO (First-In, First-Out) and LIFO (Last-In, First-Out) are methods for managing inventory cost flow.";
+                    break;
+                case 9:
+                    response = "An inventory audit involves counting and verifying the inventory on hand, typically done periodically.";
+                    break;
+                case 10:
+                    response = "Common mistakes include inaccurate tracking, overordering, and failing to perform regular audits.";
+                    break;
+                default:
+                    response = "I'm sorry, I didn't understand that.";
+            }
+            document.getElementById('chatbot-response').innerText = response;
+            speakText(response); // Read the response
+        }
+
+        // Function to use text-to-speech
+        function speakText(text) {
+            const utterance = new SpeechSynthesisUtterance(text);
+            window.speechSynthesis.speak(utterance);
+        }
+    </script>
+</body>
+
+</html>
